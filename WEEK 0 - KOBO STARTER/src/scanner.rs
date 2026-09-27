@@ -28,7 +28,10 @@ impl Scanner {
     fn run(&mut self) {
         // TODO(you): drive the scan: read one token at a time until the source runs out, then
         //            add the EOF token. Spec 6.1 says which line EOF carries.
-        todo!("run")
+        while self.at_end() == false {
+            self.start = self.current;
+            self.scan_token();
+        }
     }
 
     fn scan_token(&mut self) {
@@ -101,6 +104,7 @@ impl Scanner {
     }
 
     fn error(&mut self, line: usize, message: &str) {
-        self.errors.push(format!("[line {}] Error: {}", line, message));
+        self.errors
+            .push(format!("[line {}] Error: {}", line, message));
     }
 }
