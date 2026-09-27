@@ -1,4 +1,12 @@
-use crate::token::{keyword, Token, TokenType};
+use std::thread::panicking;
+
+use crate::token::{
+    keyword, Token,
+    TokenType::{
+        self, Bang, BangEqual, Comma, Equal, EqualEqual, Greater, GreaterEqual, LBrace, LParen,
+        Less, LessEqual, Minus, Plus, RBrace, RParen, Semicolon, Slash, Star,
+    },
+};
 
 /// Cut `source` into tokens. Returns everything it managed to scan alongside every
 /// error it found; the caller decides whether to go on.
@@ -38,7 +46,109 @@ impl Scanner {
         // TODO(you): recognise one token. Spec 1.2 lists every token type, 1.1 covers
         //            whitespace and comments, and an unrecognised character is 'Character is
         //            not part of any token.' (5.1).
-        todo!("scan_token")
+
+        // punctuation and arithmetic group tokens
+        let pattern_beginning: char = self.advance();
+        if pattern_beginning == '(' {
+            self.add(LParen);
+        } else if pattern_beginning == ')' {
+            self.add(RParen);
+        } else if pattern_beginning == '{' {
+            self.add(LBrace);
+        } else if pattern_beginning == '}' {
+            self.add(RBrace);
+        } else if pattern_beginning == ',' {
+            self.add(Comma);
+        } else if pattern_beginning == ';' {
+            self.add(Semicolon);
+        } else if pattern_beginning == '+' {
+            self.add(Plus);
+        } else if pattern_beginning == '-' {
+            self.add(Minus);
+        } else if pattern_beginning == '*' {
+            self.add(Star);
+        }
+        // two character tokens (equality group)
+
+        // ! possibilities
+        else if pattern_beginning == '!' {
+            if self.peek() == '=' {
+                self.advance();
+                self.add(BangEqual);
+            } else {
+                self.add(Bang);
+            }
+        }
+        // = possibilities
+        else if pattern_beginning == '=' {
+            if self.peek() == '=' {
+                self.advance();
+                self.add(EqualEqual);
+            } else {
+                self.add(Equal);
+            }
+        }
+        // > possibilities
+        else if pattern_beginning == '>' {
+            if self.peek() == '=' {
+                self.advance();
+                self.add(GreaterEqual);
+            } else {
+                self.add(Greater);
+            }
+        }
+        // < possibilities
+        else if pattern_beginning == '<' {
+            if self.peek() == '=' {
+                self.advance();
+                self.add(LessEqual);
+            } else {
+                self.add(Less);
+            }
+        }
+        // \ possibilities alongside whitespace
+        else if pattern_beginning == '\t' || pattern_beginning == '\r' || pattern_beginning == ' '
+        {
+        }
+        // new line
+        else if pattern_beginning == '\n' {
+            self.line += 1;
+        }
+        // / possibilities
+        else if pattern_beginning == '/' {
+            if self.peek() == '/' {
+                self.advance();
+                while self.peek() != '\n' {
+                    self.advance();
+                }
+            } else {
+                self.add(Slash);
+            }
+        }
+        // strings
+        else if pattern_beginning == '"' {
+            self.string();
+        }
+        // numbers
+        else if pattern_beginning == '0'
+            || pattern_beginning == '1'
+            || pattern_beginning == '2'
+            || pattern_beginning == '3'
+            || pattern_beginning == '4'
+            || pattern_beginning == '5'
+            || pattern_beginning == '6'
+            || pattern_beginning == '7'
+            || pattern_beginning == '8'
+            || pattern_beginning == '9'
+        {
+            self.number();
+        }
+        // identifiers
+        else if pattern_beginning.is_ascii_alphabetic() || pattern_beginning == '_' {
+            self.identifier();
+        } else {
+            self.error(self.line, "Character is not part of any token.");
+        }
     }
 
     fn string(&mut self) {
