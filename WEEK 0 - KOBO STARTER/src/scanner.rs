@@ -4,7 +4,7 @@ use crate::token::{
     keyword, Token,
     TokenType::{
         self, Bang, BangEqual, Comma, Equal, EqualEqual, Greater, GreaterEqual, LBrace, LParen,
-        Less, LessEqual, Minus, Plus, RBrace, RParen, Semicolon, Slash, Star,
+        Less, LessEqual, Minus, Plus, RBrace, RParen, Semicolon, Slash, Star, Str,
     },
 };
 
@@ -72,6 +72,7 @@ impl Scanner {
 
         // ! possibilities
         else if pattern_beginning == '!' {
+            // I realized I could have used matches for this section later on...
             if self.peek() == '=' {
                 self.advance();
                 self.add(BangEqual);
@@ -154,7 +155,24 @@ impl Scanner {
     fn string(&mut self) {
         // TODO(you): scan a string literal. A string may span lines (1.5); an unterminated one
         //            is reported at the line it opened on (5.1).
-        todo!("string")
+
+        let mut string_holder: Vec<char> = Vec::new();
+
+        let current_string_line = self.line;
+        while self.peek() != '"' {
+            if self.peek() == '\n' {
+                self.line += 1;
+            }
+            if self.at_end() {
+                self.error(current_string_line, "String is never closed.");
+                return;
+            }
+            string_holder.push(self.advance());
+        }
+        if self.peek() == '"' {
+            self.advance();
+            self.add(Str);
+        }
     }
 
     fn number(&mut self) {
