@@ -1,4 +1,4 @@
-use std::thread::panicking;
+use std::{thread::panicking, vec};
 
 use crate::token::{
     keyword, Token,
@@ -178,7 +178,50 @@ impl Scanner {
     fn number(&mut self) {
         // TODO(you): scan a number literal: digits, then a fractional part only when a digit
         //            follows the dot (1.4).
-        todo!("number")
+        let mut nunber_holder: Vec<char> = Vec::new();
+
+        while self.peek() == '0'
+            || self.peek() == '1'
+            || self.peek() == '2'
+            || self.peek() == '3'
+            || self.peek() == '4'
+            || self.peek() == '5'
+            || self.peek() == '6'
+            || self.peek() == '7'
+            || self.peek() == '8'
+            || self.peek() == '9'
+        {
+            self.advance();
+        }
+
+        if self.peek() == '.' {
+            if self.peek_next() == '0'
+                || self.peek_next() == '1'
+                || self.peek_next() == '2'
+                || self.peek_next() == '3'
+                || self.peek_next() == '4'
+                || self.peek_next() == '5'
+                || self.peek_next() == '6'
+                || self.peek_next() == '7'
+                || self.peek_next() == '8'
+                || self.peek_next() == '9'
+            {
+                self.advance();
+                while self.peek() == '0'
+                    || self.peek() == '1'
+                    || self.peek() == '2'
+                    || self.peek() == '3'
+                    || self.peek() == '4'
+                    || self.peek() == '5'
+                    || self.peek() == '6'
+                    || self.peek() == '7'
+                    || self.peek() == '8'
+                    || self.peek() == '9'
+                {
+                    nunber_holder.push(self.advance());
+                }
+            }
+        }
     }
 
     fn identifier(&mut self) {
