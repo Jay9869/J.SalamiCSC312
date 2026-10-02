@@ -105,6 +105,7 @@ impl Scanner {
         else if pattern_beginning == '!' {
             // I realized I could have used matches for this section later on...
             if self.peek() == '=' {
+                self.advance();
                 self.add(BangEqual);
             } else {
                 self.add(Bang);
@@ -113,6 +114,8 @@ impl Scanner {
         // = possibilities
         else if pattern_beginning == '=' {
             if self.peek() == '=' {
+                // a friend sent me extra test cases then I discovered a bug here and for the other double character operators, it has been fixed now
+                self.advance();
                 self.add(EqualEqual);
             } else {
                 self.add(Equal);
@@ -121,6 +124,7 @@ impl Scanner {
         // > possibilities
         else if pattern_beginning == '>' {
             if self.peek() == '=' {
+                self.advance();
                 self.add(GreaterEqual);
             } else {
                 self.add(Greater);
@@ -129,6 +133,7 @@ impl Scanner {
         // < possibilities
         else if pattern_beginning == '<' {
             if self.peek() == '=' {
+                self.advance();
                 self.add(LessEqual);
             } else {
                 self.add(Less);
