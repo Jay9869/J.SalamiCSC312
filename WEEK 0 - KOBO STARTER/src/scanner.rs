@@ -1,3 +1,5 @@
+use std::ptr::null;
+
 use crate::{
     parser::parse,
     token::{
@@ -50,6 +52,13 @@ impl Scanner {
         }
 
         // most difficult thing to implement
+        self.start = self.current; // the fix (from Mr Francis assistance) without it, noticed that the start was value len-1, current was len but with it the start was len and the current was len
+                                   // println!(
+                                   //     "still in bounds, {} - {}. src.len is {}",
+                                   //     self.start,
+                                   //     self.current,
+                                   //     self.src.len()
+                                   // );
         let last_token = self.tokens.last();
         let mut last_token_line = 1;
 
@@ -195,7 +204,7 @@ impl Scanner {
     fn number(&mut self) {
         // TODO(you): scan a number literal: digits, then a fractional part only when a digit
         //            follows the dot (1.4).
-        let mut nunber_holder: Vec<char> = Vec::new();
+        let nunber_holder: Vec<char> = Vec::new();
 
         // println!(
         //     "still in bounds, val {} at {} - {}. src.len is {}",
@@ -258,14 +267,17 @@ impl Scanner {
         //            token.rs does the lookup (1.2, 1.3).
         let mut identifier_holder: Vec<char> = Vec::new();
 
-        while self.peek() != ' ' {
+        identifier_holder.push(self.src[self.current - 1]); // I used a debug println and discovered without this, the first character of the identifier wouldnt be present
+        while self.peek() != ' ' && !self.at_end() {
             identifier_holder.push(self.advance());
         }
 
         let holder_concat: String = identifier_holder.iter().collect();
-        let holder_slice: &str = &holder_concat;
+        // let holder_slice: &str = &holder_concat;
+        // let holder_slice: &'static str = &holder_concat;
+        let holder_slice: String = holder_concat;
 
-        if holder_slice == stringify!("and") {
+        if holder_slice == "and" {
             self.add(And);
         } else if holder_slice == "else" {
             self.add(Else);
@@ -292,6 +304,8 @@ impl Scanner {
         } else {
             self.add(Identifier);
         }
+
+        // println!("holder_slice is {}", holder_slice)
     }
 
     // --- primitives ---------------------------------------------------------------
