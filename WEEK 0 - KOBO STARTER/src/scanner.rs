@@ -195,8 +195,17 @@ impl Scanner {
             }
             string_holder.push(self.advance());
         }
+        let holder_concat: String = string_holder.iter().collect();
+
         if self.peek() == '"' {
-            // self.advance();
+            self.advance();
+            // println!(
+            //     "still in bounds, {} - {}. src.len is {}. Output is {}",
+            //     self.start,
+            //     self.current,
+            //     self.src.len(),
+            //     holder_concat
+            // );
             self.add(Str);
         }
     }
@@ -204,7 +213,9 @@ impl Scanner {
     fn number(&mut self) {
         // TODO(you): scan a number literal: digits, then a fractional part only when a digit
         //            follows the dot (1.4).
-        let nunber_holder: Vec<char> = Vec::new();
+        let mut nunber_holder: Vec<char> = Vec::new();
+
+        nunber_holder.push(self.src[self.current - 1]);
 
         // println!(
         //     "still in bounds, val {} at {} - {}. src.len is {}",
@@ -214,50 +225,32 @@ impl Scanner {
         //     self.src.len()
         // );
 
-        while self.peek() == '0'
-            || self.peek() == '1'
-            || self.peek() == '2'
-            || self.peek() == '3'
-            || self.peek() == '4'
-            || self.peek() == '5'
-            || self.peek() == '6'
-            || self.peek() == '7'
-            || self.peek() == '8'
-            || self.peek() == '9'
-        {
-            // self.advance();
+        // my static continuous if/else == '0' and so on was a major culprit for a LOT of issues
+        while self.peek().is_ascii_digit() && self.peek() != ' ' {
+            nunber_holder.push(self.advance());
         }
 
         if self.peek() == '.' {
-            if self.peek_next() == '0'
-                || self.peek_next() == '1'
-                || self.peek_next() == '2'
-                || self.peek_next() == '3'
-                || self.peek_next() == '4'
-                || self.peek_next() == '5'
-                || self.peek_next() == '6'
-                || self.peek_next() == '7'
-                || self.peek_next() == '8'
-                || self.peek_next() == '9'
-            {
+            if self.peek_next().is_ascii_digit() {
+                nunber_holder.push(self.advance());
                 // self.advance();
-                while self.peek() == '0'
-                    || self.peek() == '1'
-                    || self.peek() == '2'
-                    || self.peek() == '3'
-                    || self.peek() == '4'
-                    || self.peek() == '5'
-                    || self.peek() == '6'
-                    || self.peek() == '7'
-                    || self.peek() == '8'
-                    || self.peek() == '9'
-                {
-                    // nunber_holder.push(self.advance());
+                while self.peek().is_ascii_digit() {
+                    nunber_holder.push(self.advance());
                 }
             }
         } else {
             // nunber_holder.push(self.advance());
         }
+
+        let holder_concat: String = nunber_holder.iter().collect();
+
+        // println!(
+        //     "still in bounds, {} - {}. src.len is {}. Output is {}",
+        //     self.start,
+        //     self.current,
+        //     self.src.len(),
+        //     holder_concat
+        // );
 
         self.add(Number);
     }
@@ -268,7 +261,13 @@ impl Scanner {
         let mut identifier_holder: Vec<char> = Vec::new();
 
         identifier_holder.push(self.src[self.current - 1]); // I used a debug println and discovered without this, the first character of the identifier wouldnt be present
-        while self.peek() != ' ' && !self.at_end() {
+        while self.peek().is_ascii_alphanumeric()
+            || self.peek() == '_'
+                && self.peek() != ' '
+                && self.peek() != '\t'
+                && self.peek() != '\r'
+                && !self.at_end()
+        {
             identifier_holder.push(self.advance());
         }
 
