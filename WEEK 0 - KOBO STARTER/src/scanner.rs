@@ -150,7 +150,7 @@ impl Scanner {
         // / possibilities
         else if pattern_beginning == '/' {
             if self.peek() == '/' && !self.at_end() {
-                while self.peek() != '\n' {
+                while self.peek() != '\n' && !self.at_end() {
                     self.advance();
                 }
             } else {
