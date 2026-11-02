@@ -1,5 +1,8 @@
+use std::ptr::null;
+use std::sync::Arc;
+
 use crate::ast::{Expr, Function, Program, Resolved, Stmt};
-use crate::token::{one_line, Token, TokenType};
+use crate::token::{self, keyword, one_line, Token, TokenType};
 use crate::value::Value;
 
 /// Recursive descent. Every rule in the grammar is one function, and the call order of
@@ -49,6 +52,35 @@ impl Parser {
         //            where an error is caught and synchronise() runs.
         // TEMPORARY: enough of this rule to let the ones below it run. Replace it in its
         //            own week; the marking tests for it fail until you do.
+
+        // let keyword_match: Vec<&TokenType> = keyword(word).unwrap();
+
+        // let mut word: &str = keyword(word).unwrap();
+        // if self.matches(&[keyword(word).unwrap()])
+
+        // if self.matches(&[TokenType::And])
+
+        // while (TokenType != null()) {
+        //     token_array.push(TokenType[i]);
+        // }
+
+        let mut token_holder_array: Vec<TokenType> = Vec::new();
+        token_holder_array.push(TokenType::Fun);
+        token_holder_array.push(TokenType::Var);
+        token_holder_array.push(TokenType::If);
+        token_holder_array.push(TokenType::Else);
+        token_holder_array.push(TokenType::Print);
+        token_holder_array.push(TokenType::Return);
+
+        if self.matches(&token_holder_array) {
+            if self.check(TokenType::Fun) {
+                self.fun_declaration();
+            } else if self.check(TokenType::Var) {
+                self.var_declaration();
+            } else {
+                self.statement();
+            }
+        }
         self.statement()
     }
 
@@ -76,8 +108,10 @@ impl Parser {
         //            own week; the marking tests for it fail until you do.
         // Named rather than misreported, so an `if` says what it is instead of failing
         // as a broken expression.
-        if self.check(TokenType::LBrace) || self.check(TokenType::If)
-            || self.check(TokenType::While) || self.check(TokenType::Return)
+        if self.check(TokenType::LBrace)
+            || self.check(TokenType::If)
+            || self.check(TokenType::While)
+            || self.check(TokenType::Return)
         {
             self.error("This statement form is not written yet.");
             return Err(());
