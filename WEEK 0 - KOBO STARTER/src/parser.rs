@@ -72,15 +72,19 @@ impl Parser {
         token_holder_array.push(TokenType::Print);
         token_holder_array.push(TokenType::Return);
 
+        // if self.check(TokenType::Fun) {
+        //     self.fun_declaration();
+        // } else if self.check(TokenType::Var) {
+        //     self.var_declaration();
+        // } else {
+        //     self.statement();
+
         if self.matches(&token_holder_array) {
-            if self.check(TokenType::Fun) {
-                self.fun_declaration();
-            } else if self.check(TokenType::Var) {
-                self.var_declaration();
-            } else {
-                self.statement();
-            }
+            return self.fun_declaration();
+        } else if self.matches(&token_holder_array) {
+            return self.var_declaration();
         }
+
         self.statement()
     }
 
