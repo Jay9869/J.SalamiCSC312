@@ -1,4 +1,5 @@
 use std::ptr::null;
+use std::string;
 use std::sync::Arc;
 
 use crate::ast::{Expr, Function, Program, Resolved, Stmt};
@@ -67,10 +68,10 @@ impl Parser {
         let mut token_holder_array: Vec<TokenType> = Vec::new();
         token_holder_array.push(TokenType::Fun);
         token_holder_array.push(TokenType::Var);
-        token_holder_array.push(TokenType::If);
-        token_holder_array.push(TokenType::Else);
-        token_holder_array.push(TokenType::Print);
-        token_holder_array.push(TokenType::Return);
+        // token_holder_array.push(TokenType::If);
+        // token_holder_array.push(TokenType::Else);
+        // token_holder_array.push(TokenType::Print);
+        // token_holder_array.push(TokenType::Return);
 
         // if self.check(TokenType::Fun) {
         //     self.fun_declaration();
@@ -79,6 +80,7 @@ impl Parser {
         // } else {
         //     self.statement();
 
+        // println!(" current token value {}", self.peek().lexeme);
         if self.matches(&token_holder_array) {
             return self.fun_declaration();
         } else if self.matches(&token_holder_array) {
@@ -91,7 +93,17 @@ impl Parser {
     fn fun_declaration(&mut self) -> Parsed<Stmt> {
         // TODO(you): spec 3.1: a function declaration, its parameter list, and its body.
         //            Functions are hoisted into Program::functions.
-        todo!("fun_declaration")
+
+        // let string_holder = TokenType::Fun;
+        // string_holder
+
+        // println!(" current token value {}", self.peek().lexeme);
+        let identifier_name = self.consume(TokenType::Identifier, "Expect function name.")?;
+
+        self.consume(TokenType::LParen, "Expect '(' after function name.")?;
+        // println!(" current token value {}", self.peek().lexeme);
+
+        return self.statement();
     }
 
     fn var_declaration(&mut self) -> Parsed<Stmt> {
