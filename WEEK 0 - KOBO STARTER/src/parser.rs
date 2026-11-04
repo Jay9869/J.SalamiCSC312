@@ -103,6 +103,30 @@ impl Parser {
         self.consume(TokenType::LParen, "Expect '(' after function name.")?;
         // println!(" current token value {}", self.peek().lexeme);
 
+        let mut params = Vec::new();
+        if !self.check(TokenType::RParen) {
+            while !self.check(TokenType::RParen) {
+                // println!(" current token value {}", self.peek().lexeme);
+                if !self.check(TokenType::Identifier) {
+                    self.error("Expect parameter name.");
+                    return Err(());
+                }
+
+                let param = self.consume(TokenType::Identifier, "Expect parameter name.")?;
+                // println!(" current token value {}", self.peek().lexeme);
+                params.push(param.lexeme);
+
+                if !self.matches(&[TokenType::Comma]) {
+                    break;
+                }
+
+                if self.check(TokenType::RParen) {
+                    self.error("Expect parameter name.");
+                    return Err(());
+                }
+            }
+        }
+
         return self.statement();
     }
 
