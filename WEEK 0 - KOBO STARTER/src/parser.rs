@@ -127,7 +127,30 @@ impl Parser {
             }
         }
 
-        return self.statement();
+        self.consume(TokenType::RParen, "Expect ')' after parameters.")?;
+        self.consume(TokenType::LBrace, "Expect '{' before function body.")?;
+
+        let body = self.block()?;
+        let index = self.program.functions.len();
+        // println!(
+        //     " function name {}, body size {}, function index {}",
+        //     identifier_name.lexeme,
+        //     body.len(),
+        //     index
+        // );
+
+        self.program.functions.push(Function {
+            name: identifier_name.lexeme.clone(),
+            params,
+            body,
+            line: identifier_name.line,
+        });
+
+        Ok(Stmt::Function {
+            index,
+            name: identifier_name.lexeme,
+            slot: None,
+        })
     }
 
     fn var_declaration(&mut self) -> Parsed<Stmt> {
