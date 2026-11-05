@@ -190,23 +190,54 @@ impl Parser {
         //            own week; the marking tests for it fail until you do.
         // Named rather than misreported, so an `if` says what it is instead of failing
         // as a broken expression.
-        if self.check(TokenType::LBrace)
-            || self.check(TokenType::If)
-            || self.check(TokenType::While)
-            || self.check(TokenType::Return)
-        {
-            self.error("This statement form is not written yet.");
-            return Err(());
+
+        // println!(
+        //     "current token value {}, next token {}",
+        //     self.peek().lexeme,
+        //     match self.tokens.get(self.current + 1) {
+        //         Some(next) => next.lexeme.as_str(),
+        //         None => "<none>",
+        //     }
+        // );
+
+        if self.check(TokenType::LBrace) {
+            self.current += 1;
+            return Ok(Stmt::Block {
+                body: self.block()?,
+                locals: 0,
+            });
         }
+
+        // println!(
+        //     "current token value {}, next token {}",
+        //     self.peek().lexeme,
+        //     match self.tokens.get(self.current + 1) {
+        //         Some(next) => next.lexeme.as_str(),
+        //         None => "<none>",
+        //     }
+        // );
+
+        if self.matches(&[TokenType::If]) {
+            return self.if_statement();
+        }
+
+        if self.matches(&[TokenType::While]) {
+            return self.while_statement();
+        }
+
+        if self.matches(&[TokenType::Return]) {
+            return self.return_statement();
+        }
+
         if self.matches(&[TokenType::Print]) {
             let value = self.expression()?;
             self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
-            Ok(Stmt::Print(value))
-        } else {
-            let expr = self.expression()?;
-            self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
-            Ok(Stmt::Expression(expr))
+            return Ok(Stmt::Print(value));
         }
+
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after expression.")?;
+        Ok(Stmt::Expression(expr))
     }
 
     fn return_statement(&mut self) -> Parsed<Stmt> {
