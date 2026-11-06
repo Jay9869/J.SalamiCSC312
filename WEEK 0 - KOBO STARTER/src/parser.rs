@@ -506,7 +506,39 @@ impl Parser {
         //            recursion; f(1)(2) is one callee called twice.
         // TEMPORARY: enough of this rule to let the ones below it run. Replace it in its
         //            own week; the marking tests for it fail until you do.
-        self.primary()
+
+        let mut expr = self.primary()?;
+
+        while self.matches(&[TokenType::LParen]) {
+            let mut args = Vec::new();
+
+            if !self.check(TokenType::RParen) {
+                while !self.check(TokenType::RParen) {
+                    args.push(self.expression()?);
+                    if !self.matches(&[TokenType::Comma]) {
+                        break;
+                    }
+                }
+            }
+
+            // println!(
+            //     "current token value {}, next token {}",
+            //     self.peek().lexeme,
+            //     match self.tokens.get(self.current + 1) {
+            //         Some(next) => next.lexeme.as_str(),
+            //         None => "<none>",
+            //     }
+            // );
+
+            let paren = self.consume(TokenType::RParen, "Expect ')' after arguments.")?;
+            expr = Expr::Call {
+                callee: Box::new(expr),
+                paren,
+                args,
+            };
+        }
+
+        Ok(expr)
     }
 
     fn primary(&mut self) -> Parsed<Expr> {
