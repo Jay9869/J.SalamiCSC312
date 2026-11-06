@@ -257,7 +257,26 @@ impl Parser {
     fn if_statement(&mut self) -> Parsed<Stmt> {
         // TODO(you): spec 3.1. The dangling else binds to the nearest unmatched if , the
         //            recursion decides that, not the grammar.
-        todo!("if_statement")
+
+        // println!(" current token value {}", self.peek().lexeme);
+        self.consume(TokenType::LParen, "Expect '(' after 'if'.")?;
+        let condition = self.expression()?;
+
+        // println!(" current token value {}", self.peek().lexeme);
+        self.consume(TokenType::RParen, "Expect ')' after if condition.")?;
+
+        let then_branch = Box::new(self.statement()?);
+
+        let mut else_branch = None;
+        if self.matches(&[TokenType::Else]) {
+            else_branch = Some(Box::new(self.statement()?));
+        }
+
+        Ok(Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        })
     }
 
     fn while_statement(&mut self) -> Parsed<Stmt> {
