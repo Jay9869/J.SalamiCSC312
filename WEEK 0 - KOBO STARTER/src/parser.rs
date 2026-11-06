@@ -293,7 +293,24 @@ impl Parser {
     /// `var` most often appears, and the whole point of one is that the name dies at `}`.
     fn block(&mut self) -> Parsed<Vec<Stmt>> {
         // TODO(you): spec 3.1: '{' declaration* '}'
-        todo!("block")
+        let mut statements = Vec::new();
+
+        while !self.at_end() && !self.check(TokenType::RBrace) {
+            let next = self.declaration()?;
+            statements.push(next);
+        }
+
+        // println!(
+        //     "current token value {}, next token {}",
+        //     self.peek().lexeme,
+        //     match self.tokens.get(self.current + 1) {
+        //         Some(next) => next.lexeme.as_str(),
+        //         None => "<none>",
+        //     }
+        // );
+
+        self.consume(TokenType::RBrace, "Expect '}' after block.")?;
+        Ok(statements)
     }
 
     // --- expressions, lowest precedence first --------------------------------------
@@ -319,7 +336,27 @@ impl Parser {
         //            afterwards, because the rule is not LL(1).
         // TEMPORARY: enough of this rule to let the ones below it run. Replace it in its
         //            own week; the marking tests for it fail until you do.
-        self.or()
+
+        let left = self.or()?;
+
+        if self.matches(&[TokenType::Equal]) {
+            let equals = self.previous();
+            let right = self.assignment()?;
+
+            match left {
+                Expr::Variable { name, .. } => Ok(Expr::Assign {
+                    name,
+                    value: Box::new(right),
+                    at: Resolved::default(),
+                }),
+                _ => {
+                    self.error_at(&equals, "Cannot assign to this expression.");
+                    Err(())
+                }
+            }
+        } else {
+            Ok(left)
+        }
     }
 
     fn or(&mut self) -> Parsed<Expr> {
