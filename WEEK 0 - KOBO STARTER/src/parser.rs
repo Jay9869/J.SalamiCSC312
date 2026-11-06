@@ -65,9 +65,11 @@ impl Parser {
         //     token_array.push(TokenType[i]);
         // }
 
-        let mut token_holder_array: Vec<TokenType> = Vec::new();
-        token_holder_array.push(TokenType::Fun);
-        token_holder_array.push(TokenType::Var);
+        let mut fun_token_holder_array: Vec<TokenType> = Vec::new();
+        fun_token_holder_array.push(TokenType::Fun);
+
+        let mut var_token_holder_array: Vec<TokenType> = Vec::new();
+        var_token_holder_array.push(TokenType::Var);
         // token_holder_array.push(TokenType::If);
         // token_holder_array.push(TokenType::Else);
         // token_holder_array.push(TokenType::Print);
@@ -81,9 +83,9 @@ impl Parser {
         //     self.statement();
 
         // println!(" current token value {}", self.peek().lexeme);
-        if self.matches(&token_holder_array) {
+        if self.matches(&fun_token_holder_array) {
             return self.fun_declaration();
-        } else if self.matches(&token_holder_array) {
+        } else if self.matches(&var_token_holder_array) {
             return self.var_declaration();
         }
 
