@@ -518,17 +518,28 @@ impl Parser {
                     if !self.matches(&[TokenType::Comma]) {
                         break;
                     }
+
+                    // println!(
+                    //     "current token value {}, next token {}",
+                    //     self.peek().lexeme,
+                    //     match self.tokens.get(self.current + 1) {
+                    //         Some(next) => next.lexeme.as_str(),
+                    //         None => "<none>",
+                    //     }
+                    // );
+
+                    if self.check(TokenType::RParen) {
+                        self.consume(TokenType::RParen, "Expect ')' after arguments.")?;
+                        self.error("Expect expression.");
+                        return Err(());
+                    }
+
+                    if self.check(TokenType::Semicolon) {
+                        self.error("Expect expression.");
+                        return Err(());
+                    }
                 }
             }
-
-            // println!(
-            //     "current token value {}, next token {}",
-            //     self.peek().lexeme,
-            //     match self.tokens.get(self.current + 1) {
-            //         Some(next) => next.lexeme.as_str(),
-            //         None => "<none>",
-            //     }
-            // );
 
             let paren = self.consume(TokenType::RParen, "Expect ')' after arguments.")?;
             expr = Expr::Call {
