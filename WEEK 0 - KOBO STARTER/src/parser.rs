@@ -545,10 +545,43 @@ impl Parser {
         // TODO(you): spec 3.2: literals, identifiers and grouping.
         // TEMPORARY: enough of this rule to let the ones below it run. Replace it in its
         //            own week; the marking tests for it fail until you do.
+
         if self.matches(&[TokenType::Number]) {
-            let n = self.previous().lexeme.parse::<f64>().unwrap();
-            return Ok(self.literal(Value::Number(n)));
+            let num = self.previous().lexeme.parse::<f64>().unwrap();
+            return Ok(self.literal(Value::Number(num)));
         }
+
+        if self.matches(&[TokenType::Str]) {
+            let text = self.previous().lexeme.clone();
+            let value = text[1..text.len() - 1].to_string();
+            return Ok(self.literal(Value::Str(value)));
+        }
+
+        if self.matches(&[TokenType::True]) {
+            return Ok(self.literal(Value::Bool(true)));
+        }
+
+        if self.matches(&[TokenType::False]) {
+            return Ok(self.literal(Value::Bool(false)));
+        }
+
+        if self.matches(&[TokenType::Nil]) {
+            return Ok(self.literal(Value::Nil));
+        }
+
+        if self.matches(&[TokenType::Identifier]) {
+            return Ok(Expr::Variable {
+                name: self.previous(),
+                at: Resolved::default(),
+            });
+        }
+
+        if self.matches(&[TokenType::LParen]) {
+            let inner = self.expression()?;
+            self.consume(TokenType::RParen, "Expect ')' after expression.")?;
+            return Ok(Expr::Grouping(Box::new(inner)));
+        }
+
         self.error("Expect expression.");
         Err(())
     }
