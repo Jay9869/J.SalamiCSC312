@@ -79,7 +79,29 @@ impl Resolver {
     fn end_scope(&mut self) -> usize {
         // TODO(you): close a scope and report how many locals died in it, which is how many
         //            Pops the bytecode compiler owes.
-        todo!("end_scope")
+
+        let closing = self.depth;
+        let mut popped = 0;
+
+        // println!(
+        //     "ending scope at depth {}, current locals count {}",
+        //     closing,
+        //     self.locals.len()
+        // );
+
+        while matches!(self.locals.last(), Some(local) if local.scope == closing) {
+            self.locals.pop();
+            popped += 1;
+
+            // println!(
+            //     "popped local in scope {}, total popped {}",
+            //     closing,
+            //     popped
+            // );
+        }
+
+        self.depth -= 1;
+        popped
     }
 
     fn declare(&mut self, name: &str) {
