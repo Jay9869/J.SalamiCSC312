@@ -11,7 +11,48 @@ pub fn resolve(program: &mut Program) {
     // TODO(you): spec 7, 'The resolver': walk every function body in its own frame (4.3), then
     //            the script. A function's body sees its own scopes and the globals and nothing
     //            between.
-    todo!("resolve")
+
+    let mut resolver = Resolver::default();
+
+    // println!(
+    //     "functions count {}, stmts count {}",
+    //     program.functions.len(),
+    //     program.stmts.len()
+    // );
+
+    for function in &mut program.functions {
+        resolver.depth = 1;
+        resolver.locals.clear();
+
+        // println!(
+        //     "params count {}",
+        //     function.name,
+        //     function.params.len()
+        // );
+
+        for param in &function.params {
+            // println!(
+            //     "parameter {}",
+            //     param
+            // );
+            resolver.declare(param);
+            resolver.define(param);
+        }
+
+        resolver.statements(&mut function.body);
+
+        resolver.depth = 0;
+        resolver.locals.clear();
+
+        // println!(
+        //     "function resolve endd {}",
+        //     function.name
+        // );
+    }
+
+    resolver.depth = 0;
+    resolver.locals.clear();
+    resolver.statements(&mut program.stmts);
 }
 
 struct Local {
