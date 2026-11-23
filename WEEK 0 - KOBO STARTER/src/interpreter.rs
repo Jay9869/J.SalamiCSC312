@@ -39,7 +39,123 @@ pub fn interpret(program: &Program) -> Result<(), RuntimeError> {
 
 fn execute(stmt: &Stmt, env: &mut Environment, program: &Program) -> Exec<()> {
     // TODO(you): spec 4: run one statement.
-    todo!("execute")
+
+    match stmt {
+        Stmt::Expression(expr) => {
+            evaluate(expr, env, program)?;
+            Ok(())
+        }
+        Stmt::Print(expr) => {
+            let value = evaluate(expr, env, program)?;
+            // println!(
+            //     "value {}",
+            //     value
+            // );
+            println!("{}", value);
+            Ok(())
+        }
+        Stmt::Var {
+            name,
+            initialiser,
+            slot: _,
+        } => {
+            // println!(
+            //     "var {}",
+            //     name.lexeme
+            // );
+
+            let value = match initialiser {
+                Some(expr) => {
+                    // println!(
+                    //     "var {}",
+                    //     name.lexeme
+                    // );
+                    evaluate(expr, env, program)?
+                }
+                None => {
+                    // println!(
+                    //     "var {}",
+                    //     name.lexeme
+                    // );
+                    Value::Nil
+                }
+            };
+            // println!(
+            //     "var {}, value {}",
+            //     name.lexeme,
+            //     value
+            // );
+            env.declare(&name.lexeme, value);
+            Ok(())
+        }
+        Stmt::Block { body, .. } => {
+            // println!(
+            //     "stmts {} ",
+            //     body.len()
+            // );
+            env.push_scope();
+
+            let mut outcome = Ok(());
+            for statement in body {
+                if let Err(flow) = execute(statement, env, program) {
+                    outcome = Err(flow);
+                    break;
+                }
+            }
+
+            env.pop_scope();
+
+            outcome
+        }
+        Stmt::If {
+            condition,
+            then_branch,
+            else_branch,
+        } => {
+            if evaluate(condition, env, program)?.is_truthy() {
+                execute(then_branch, env, program)
+            } else if let Some(else_branch) = else_branch {
+                execute(else_branch, env, program)
+            } else {
+                Ok(())
+            }
+        }
+        Stmt::While { condition, body } => {
+            while evaluate(condition, env, program)?.is_truthy() {
+                execute(body, env, program)?;
+            }
+
+            Ok(())
+        }
+        Stmt::Function { index, name, .. } => {
+            // println!(
+            //     "stmt {}",
+            //     name
+            // );
+
+            // println!(
+            //     "function {}, index {}",
+            //     name,
+            //     index
+            // );
+            env.declare(
+                name,
+                Value::Function {
+                    index: *index,
+                    name: name.to_string(),
+                },
+            );
+            Ok(())
+        }
+        Stmt::Return(value) => {
+            let value = match value {
+                Some(expr) => evaluate(expr, env, program)?,
+                None => Value::Nil,
+            };
+
+            Err(Flow::Return(value))
+        }
+    }
 }
 
 fn evaluate(expr: &Expr, env: &mut Environment, program: &Program) -> Exec<Value> {
@@ -82,7 +198,10 @@ fn compare(l: Value, r: Value, line: usize, f: fn(f64, f64) -> bool) -> Exec<Val
 }
 
 fn undefined(name: &Token) -> Flow {
-    err(name.line, &format!("Variable '{}' is not defined.", name.lexeme))
+    err(
+        name.line,
+        &format!("Variable '{}' is not defined.", name.lexeme),
+    )
 }
 
 fn err(line: usize, message: &str) -> Flow {
