@@ -138,7 +138,35 @@ impl Resolver {
     /// `None` at the top level of the script, where a declaration is a global.
     fn define(&mut self, name: &str) -> Option<usize> {
         // TODO(you): make it usable, and hand back its stack slot.
-        todo!("define")
+
+        // println!(
+        //     "defining variable {}, depth {}",
+        //     name,
+        //     self.depth
+        // );
+
+        if self.depth == 0 {
+            // println!(
+            //     "skiped definition of global {}",
+            //     name
+            // );
+            return None;
+        }
+
+        let slot = self.locals.len().checked_sub(1)?;
+        let local = self.locals.get_mut(slot)?;
+        if local.name == name {
+            local.initialised = true;
+
+            // println!(
+            //     "defined local {} at slot {}",
+            //     name,
+            //     slot
+            // );
+            Some(slot)
+        } else {
+            None
+        }
     }
 
     /// Innermost first, so the nearest declaration wins and an outer one stays shadowed.
