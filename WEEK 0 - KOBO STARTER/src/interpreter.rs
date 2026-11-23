@@ -359,7 +359,66 @@ fn call(
 ) -> Exec<Value> {
     // TODO(you): spec 4.3: check arity, push a frame, declare the parameters, run the body, and
     //            pop the frame on all three ways out.
-    todo!("call")
+
+    let function = &program.functions[index];
+
+    // println!(
+    //     "calling function {}, expected params {}, args {}",
+    //     function.name,
+    //     function.params.len(),
+    //     args.len()
+    // );
+
+    if args.len() != function.params.len() {
+        return Err(err(
+            line,
+            &format!(
+                "Expected {} arguments but got {}.",
+                function.params.len(),
+                args.len()
+            ),
+        ));
+    }
+
+    if env.frame_depth() >= MAX_FRAMES {
+        return Err(err(line, "Stack overflow."));
+    }
+
+    env.push_frame();
+    for (param, arg) in function.params.iter().zip(args) {
+        // println!(
+        //     "binding param {} to value {}",
+        //     param,
+        //     arg
+        // );
+        env.declare(param, arg);
+    }
+
+    // println!(
+    //     "function body{}, statements",
+    //     function.body.len()
+    // );
+    let mut outcome = Ok(Value::Nil);
+    for statement in &function.body {
+        match execute(statement, env, program) {
+            Ok(()) => {}
+            Err(Flow::Return(value)) => {
+                outcome = Ok(value);
+                break;
+            }
+            Err(Flow::Error(error)) => {
+                outcome = Err(Flow::Error(error));
+                break;
+            }
+        }
+    }
+
+    env.pop_frame();
+    // println!(
+    //     "finished function call {}",
+    //     function.name
+    // );
+    outcome
 }
 
 fn numbers(l: Value, r: Value, line: usize) -> Exec<(f64, f64)> {
