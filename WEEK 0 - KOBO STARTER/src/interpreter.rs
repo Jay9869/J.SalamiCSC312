@@ -161,7 +161,189 @@ fn execute(stmt: &Stmt, env: &mut Environment, program: &Program) -> Exec<()> {
 fn evaluate(expr: &Expr, env: &mut Environment, program: &Program) -> Exec<Value> {
     // TODO(you): spec 2 and 4.1: evaluate one expression to a Value. Truthiness, equality
     //            across kinds and short-circuiting are all specified.
-    todo!("evaluate")
+
+    match expr {
+        Expr::Literal { value, .. } => {
+            // println!(
+            //     "literal is{}",
+            //     value
+            // );
+            Ok(value.clone())
+        }
+        Expr::Grouping(inner) => evaluate(inner, env, program),
+        Expr::Variable { name, at } => {
+            match at {
+                Resolved::Local { depth, .. } => {
+                    // println!(
+                    //     "local{}, depth {}",
+                    //     name.lexeme,
+                    //     depth
+                    // );
+                    env.get_at(*depth, &name.lexeme)
+                        .cloned()
+                        .ok_or_else(|| undefined(name))
+                }
+                Resolved::Global => {
+                    // println!(
+                    //     "global {}",
+                    //     name.lexeme
+                    // );
+                    env.get_global(&name.lexeme)
+                        .cloned()
+                        .ok_or_else(|| undefined(name))
+                }
+            }
+        }
+        Expr::Assign { name, value, at } => {
+            let value = evaluate(value, env, program)?;
+
+            let stored = match at {
+                Resolved::Local { depth, .. } => env.assign_at(*depth, &name.lexeme, value.clone()),
+                Resolved::Global => env.assign_global(&name.lexeme, value.clone()),
+            };
+
+            if stored {
+                Ok(value)
+            } else {
+                Err(undefined(name))
+            }
+        }
+        Expr::Call {
+            callee,
+            paren,
+            args,
+        } => {
+            // println!(
+            //     "call at {}",
+            //     paren.line
+            // );
+            let callee = evaluate(callee, env, program)?;
+
+            let mut arguments = Vec::with_capacity(args.len());
+            for arg in args {
+                arguments.push(evaluate(arg, env, program)?);
+            }
+
+            match callee {
+                Value::Function { index, .. } => call(index, arguments, paren.line, env, program),
+                _ => Err(err(paren.line, "This value is not a function.")),
+            }
+        }
+        Expr::Unary { op, right } => {
+            // println!(
+            //     "unary {}",
+            //     op.lexeme
+            // );
+
+            // println!(
+            //     "unary operator {}",
+            //     op.lexeme
+            // );
+            let right = evaluate(right, env, program)?;
+            match op.kind {
+                TokenType::Bang => {
+                    // println!(
+                    //     "unary bang {}",
+                    //     !right.is_truthy()
+                    // );
+                    Ok(Value::Bool(!right.is_truthy()))
+                }
+                TokenType::Minus => match right {
+                    Value::Number(number) => Ok(Value::Number(-number)),
+                    _ => Err(err(op.line, "Operand must be a number.")),
+                },
+                _ => unreachable!("the parser only produces ! and - as unary operators"),
+            }
+        }
+        Expr::Binary { left, op, right } => {
+            let left = evaluate(left, env, program)?;
+            let right = evaluate(right, env, program)?;
+
+            // println!(
+            //     "binary op {}, left {}, right {}",
+            //     op.lexeme,
+            //     left,
+            //     right
+            // );
+
+            match op.kind {
+                TokenType::Minus => arith(left, right, op.line, |a, b| a - b),
+
+                TokenType::Slash => {
+                    let (a, b) = numbers(left, right, op.line)?;
+
+                    if b == 0.0 {
+                        Err(err(op.line, "Division by zero."))
+                    } else {
+                        Ok(Value::Number(a / b))
+                    }
+                }
+
+                TokenType::Star => arith(left, right, op.line, |a, b| a * b),
+
+                TokenType::Plus => match (left, right) {
+                    (Value::Number(a), Value::Number(b)) => {
+                        // println!(
+                        //     "added numbers {} and {}",
+                        //     a,
+                        //     b
+                        // );
+                        Ok(Value::Number(a + b))
+                    }
+                    (Value::Str(a), Value::Str(b)) => {
+                        // println!(
+                        //     "joined strings {} and {}",
+                        //     a,
+                        //     b
+                        // );
+                        Ok(Value::Str(a + &b))
+                    }
+                    _ => Err(err(op.line, "Operands must be two numbers or two strings.")),
+                },
+
+                TokenType::Greater => compare(left, right, op.line, |a, b| a > b),
+                TokenType::GreaterEqual => compare(left, right, op.line, |a, b| a >= b),
+                TokenType::Less => compare(left, right, op.line, |a, b| a < b),
+                TokenType::LessEqual => compare(left, right, op.line, |a, b| a <= b),
+                TokenType::EqualEqual => Ok(Value::Bool(left == right)),
+                TokenType::BangEqual => Ok(Value::Bool(left != right)),
+
+                _ => unreachable!("the parser only produces binary operators here"),
+            }
+        }
+        Expr::Logical { left, op, right } => {
+            // println!(
+            //     "logical {}",
+            //     op.lexeme
+            // );
+
+            let left = evaluate(left, env, program)?;
+
+            // println!(
+            //     "logical op {}, left value {}",
+            //     op.lexeme,
+            //     left
+            // );
+
+            match op.kind {
+                TokenType::Or => {
+                    if left.is_truthy() {
+                        Ok(left)
+                    } else {
+                        evaluate(right, env, program)
+                    }
+                }
+                TokenType::And => {
+                    if !left.is_truthy() {
+                        Ok(left)
+                    } else {
+                        evaluate(right, env, program)
+                    }
+                }
+                _ => unreachable!("the parser only produces and/or as logical operators"),
+            }
+        }
+    }
 }
 
 /// Run a function body in a fresh frame. Everything about Kobo's scope rules is in these
