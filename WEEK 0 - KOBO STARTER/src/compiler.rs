@@ -193,7 +193,152 @@ impl<'a> Compiler<'a> {
     /// follow-up instruction to.
     fn expression(&mut self, expr: &Expr) -> usize {
         // TODO(you): emit code for one expression, and return the line it came from.
-        todo!("expression")
+
+        match expr {
+            Expr::Literal { value, line } => {
+                // println!(
+                //     "literal value {}, line {}",
+                //     value,
+                //     line
+                // );
+                let constant = self.chunk.constant(value.clone());
+                self.chunk.write(Op::Constant(constant), *line);
+                *line
+            }
+
+            Expr::Grouping(inner) => self.expression(inner),
+
+            Expr::Variable { name, at } => {
+                // println!(
+                //     "variable {}",
+                //     name.lexeme
+                // );
+                match at {
+                    Resolved::Local { slot, .. } => {
+                        // println!(
+                        //     "local slot {}",
+                        //     slot
+                        // );
+                        self.chunk.write(Op::GetLocal(*slot), name.line);
+                    }
+                    Resolved::Global => {
+                        // println!(
+                        //     "global {}",
+                        //     name.lexeme
+                        // );
+                        let constant = self.name_constant(&name.lexeme);
+                        self.chunk.write(Op::GetGlobal(constant), name.line);
+                    }
+                }
+                name.line
+            }
+
+            Expr::Assign { name, value, at } => {
+                // println!(
+                //     "assignment {}",
+                //     name.lexeme
+                // );
+                self.expression(value);
+
+                match at {
+                    Resolved::Local { slot, .. } => {
+                        self.chunk.write(Op::SetLocal(*slot), name.line);
+                    }
+                    Resolved::Global => {
+                        let constant = self.name_constant(&name.lexeme);
+                        self.chunk.write(Op::SetGlobal(constant), name.line);
+                    }
+                }
+                name.line
+            }
+
+            Expr::Call {
+                callee,
+                paren,
+                args,
+            } => {
+                // println!(
+                //     "call at line {}, args {}",
+                //     paren.line,
+                //     args.len()
+                // );
+
+                self.expression(callee);
+                for arg in args {
+                    self.expression(arg);
+                }
+                self.chunk.write(Op::Call(args.len()), paren.line);
+                paren.line
+            }
+
+            Expr::Unary { op, right } => {
+                // println!(
+                //     "unary operator {}",
+                //     op.lexeme
+                // );
+                self.expression(right);
+                let instruction = match op.kind {
+                    TokenType::Bang => Op::Not,
+                    TokenType::Minus => Op::Negate,
+                    _ => unreachable!("the parser only produces ! and - unary"),
+                };
+                self.chunk.write(instruction, op.line);
+                op.line
+            }
+
+            Expr::Binary { left, op, right } => {
+                // println!(
+                //     "binary operator {}",
+                //     op.lexeme
+                // );
+                self.expression(left);
+                self.expression(right);
+                let instruction = match op.kind {
+                    TokenType::EqualEqual => Op::Equal,
+                    TokenType::BangEqual => Op::NotEqual,
+                    TokenType::Greater => Op::Greater,
+                    TokenType::GreaterEqual => Op::GreaterEqual,
+                    TokenType::Less => Op::Less,
+                    TokenType::LessEqual => Op::LessEqual,
+                    TokenType::Plus => Op::Add,
+                    TokenType::Minus => Op::Subtract,
+                    TokenType::Star => Op::Multiply,
+                    TokenType::Slash => Op::Divide,
+                    _ => unreachable!("the parser only produces binary operators"),
+                };
+                self.chunk.write(instruction, op.line);
+                op.line
+            }
+
+            Expr::Logical { left, op, right } => {
+                // println!(
+                //     "logical operator {}",
+                //     op.lexeme
+                // );
+                let line = op.line;
+                self.expression(left);
+
+                match op.kind {
+                    TokenType::And => {
+                        let end = self.chunk.write(Op::JumpIfFalse(0), line);
+                        self.chunk.write(Op::Pop, line);
+                        self.expression(right);
+                        self.patch(end);
+                    }
+                    TokenType::Or => {
+                        let right_start = self.chunk.write(Op::JumpIfFalse(0), line);
+                        let end = self.chunk.write(Op::Jump(0), line);
+                        self.patch(right_start);
+                        self.chunk.write(Op::Pop, line);
+                        self.expression(right);
+                        self.patch(end);
+                    }
+                    _ => unreachable!("the parser only produces and/or logical operators"),
+                }
+
+                line
+            }
+        }
     }
 
     // --- names ------------------------------------------------------------------------
