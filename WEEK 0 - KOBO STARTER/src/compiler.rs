@@ -353,7 +353,23 @@ impl<'a> Compiler<'a> {
     fn declare(&mut self, name: &str, slot: Option<usize>, line: usize) {
         // TODO(you): a global is written into the globals map; a local is already on the stack
         //            in the slot resolver.rs gave it, so it emits nothing.
-        todo!("declare")
+
+        // println!(
+        //     "compiler name {}, slot {:?}",
+        //     name,
+        //     slot
+        // );
+
+        if self.in_function || slot.is_some() {
+            return;
+        }
+
+        let constant = self.name_constant(name);
+        self.chunk.write(Op::DefineGlobal(constant), line);
+        // println!(
+        //     "global for {}",
+        //     name
+        // );
     }
 
     fn name_constant(&mut self, name: &str) -> usize {
@@ -367,7 +383,15 @@ impl<'a> Compiler<'a> {
     fn end_scope(&mut self, locals: usize) {
         // TODO(you): leave a scope: one Pop per local that dies here, and the resolver already
         //            counted them onto the Block.
-        todo!("end_scope")
+
+        // println!(
+        //     "local end scope to pop {}",
+        //     locals
+        // );
+        for _ in 0..locals {
+            let line = self.chunk.last_line();
+            self.chunk.write(Op::Pop, line);
+        }
     }
 
     fn patch(&mut self, at: usize) {
