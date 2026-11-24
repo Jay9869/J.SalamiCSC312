@@ -72,7 +72,119 @@ impl<'a> Compiler<'a> {
 
     fn statement(&mut self, stmt: &Stmt) {
         // TODO(you): emit code for one statement.
-        todo!("statement")
+
+        match stmt {
+            Stmt::Expression(expr) => {
+                let line = self.expression(expr);
+                self.chunk.write(Op::Pop, line);
+            }
+
+            Stmt::Print(expr) => {
+                let line = self.expression(expr);
+                self.chunk.write(Op::Print, line);
+            }
+
+            Stmt::Var {
+                name,
+                initialiser,
+                slot,
+            } => {
+                // println!(
+                //     " var statement {}, slot {:?}",
+                //     name.lexeme,
+                //     slot
+                // );
+
+                let line = match initialiser {
+                    Some(expr) => self.expression(expr),
+                    None => {
+                        self.chunk.write(Op::Nil, name.line);
+                        name.line
+                    }
+                };
+                self.declare(&name.lexeme, *slot, line);
+            }
+
+            Stmt::Block { body, locals } => {
+                // println!(
+                //     "block statement, stmts {}, locals {}",
+                //     body.len(),
+                //     locals
+                // );
+                self.statements(body);
+                self.end_scope(*locals);
+            }
+
+            Stmt::If {
+                condition,
+                then_branch,
+                else_branch,
+            } => {
+                let line = self.expression(condition);
+
+                let jump_if_false = self.chunk.write(Op::JumpIfFalse(0), line);
+                self.chunk.write(Op::Pop, line);
+
+                self.statement(then_branch);
+
+                let jump_over_else = self.chunk.write(Op::Jump(0), line);
+                self.patch(jump_if_false);
+
+                self.chunk.write(Op::Pop, line);
+
+                if let Some(else_branch) = else_branch {
+                    self.statement(else_branch);
+                }
+
+                self.patch(jump_over_else);
+            }
+
+            Stmt::While { condition, body } => {
+                let loop_start = self.chunk.code.len();
+                // println!(
+                //     "while loop at {}",
+                //     loop_start
+                // );
+                let line = self.expression(condition);
+
+                let exit = self.chunk.write(Op::JumpIfFalse(0), line);
+                self.chunk.write(Op::Pop, line);
+
+                self.statement(body);
+
+                self.chunk.write(Op::Jump(loop_start), line);
+                self.patch(exit);
+
+                self.chunk.write(Op::Pop, line);
+            }
+
+            Stmt::Function { index, name, slot } => {
+                // println!(
+                //     "function {}, index {}",
+                //     name,
+                //     index
+                // );
+                let line = self.program.functions[*index].line;
+                let constant = self.chunk.constant(Value::Function {
+                    index: *index,
+                    name: name.clone(),
+                });
+                self.chunk.write(Op::Constant(constant), line);
+                self.declare(name, *slot, line);
+            }
+
+            Stmt::Return(value) => {
+                let line = match value {
+                    Some(expr) => self.expression(expr),
+                    None => {
+                        let line = self.chunk.last_line();
+                        self.chunk.write(Op::Nil, line);
+                        line
+                    }
+                };
+                self.chunk.write(Op::Return, line);
+            }
+        }
     }
 
     // --- expressions ------------------------------------------------------------------
