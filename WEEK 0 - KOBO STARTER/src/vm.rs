@@ -47,7 +47,233 @@ impl Vm {
     fn run(&mut self) -> Result<(), RuntimeError> {
         // TODO(you): the dispatch loop: one match over Op. Spec 6.1 requires it to print
         //            exactly what the interpreter prints, down to the exit code.
-        todo!("Vm::run")
+
+        loop {
+            let (function, op, line) = {
+                let frame = self.frame();
+                let chunk = self.chunk(frame.function);
+                (frame.function, chunk.code[frame.ip], chunk.lines[frame.ip])
+            };
+            self.frame_mut().ip += 1;
+
+            match op {
+                Op::Constant(index) => {
+                    let value = self.chunk(function).constants[index].clone();
+                    // println!(
+                    //     "constant {}, value {}",
+                    //     index,
+                    //     value
+                    // );
+                    self.stack.push(value);
+                }
+                Op::Nil => {
+                    self.stack.push(Value::Nil);
+                }
+                Op::True => {
+                    self.stack.push(Value::Bool(true));
+                }
+                Op::False => {
+                    self.stack.push(Value::Bool(false));
+                }
+                Op::Pop => {
+                    // println!(
+                    //     "remaining count {}",
+                    //     self.stack.len()
+                    // );
+                    self.pop();
+                }
+
+                Op::DefineGlobal(index) => {
+                    let name = self.name(function, index);
+                    let value = self.pop();
+                    // println!(
+                    //     "global {}, value {}",
+                    //     name,
+                    //     value
+                    // );
+                    self.globals.insert(name, value);
+                }
+                Op::GetGlobal(index) => {
+                    let name = self.name(function, index);
+                    // println!(
+                    //     "getting global {}",
+                    //     name
+                    // );
+                    let value = self
+                        .globals
+                        .get(&name)
+                        .cloned()
+                        .ok_or_else(|| undefined(line, &name))?;
+                    self.stack.push(value);
+                }
+                Op::SetGlobal(index) => {
+                    let name = self.name(function, index);
+                    let value = self.peek().clone();
+                    // println!(
+                    //     "set global {}, value {}",
+                    //     name,
+                    //     value
+                    // );
+                    match self.globals.get_mut(&name) {
+                        Some(slot) => *slot = value,
+                        None => return Err(undefined(line, &name)),
+                    }
+                }
+                Op::GetLocal(slot) => {
+                    let base = self.frame().base;
+                    let value = self.stack[base + slot].clone();
+                    // println!(
+                    //     "get local {}, value {}",
+                    //     slot,
+                    //     value
+                    // );
+                    self.stack.push(value);
+                }
+                Op::SetLocal(slot) => {
+                    let base = self.frame().base;
+                    let value = self.peek().clone();
+                    // println!(
+                    //     "set local {}, value {}",
+                    //     slot,
+                    //     value
+                    // );
+                    self.stack[base + slot] = value;
+                }
+
+                Op::Equal => {
+                    self.binary_value(|a, b| Value::Bool(a == b));
+                }
+                Op::NotEqual => {
+                    self.binary_value(|a, b| Value::Bool(a != b));
+                }
+                Op::Greater => {
+                    self.compare(line, |a, b| a > b)?;
+                }
+                Op::GreaterEqual => {
+                    self.compare(line, |a, b| a >= b)?;
+                }
+                Op::Less => {
+                    self.compare(line, |a, b| a < b)?;
+                }
+                Op::LessEqual => {
+                    self.compare(line, |a, b| a <= b)?;
+                }
+
+                Op::Add => {
+                    let (a, b) = self.pop_two();
+                    // println!(
+                    //     "add {} and {}",
+                    //     a,
+                    //     b
+                    // );
+                    match (a, b) {
+                        (Value::Number(a), Value::Number(b)) => {
+                            self.stack.push(Value::Number(a + b))
+                        }
+                        (Value::Str(a), Value::Str(b)) => self.stack.push(Value::Str(a + &b)),
+                        _ => {
+                            return Err(error(
+                                line,
+                                "Operands must be two numbers or two strings.",
+                            ));
+                        }
+                    }
+                }
+                Op::Subtract => {
+                    self.arith(line, |a, b| a - b)?;
+                }
+                Op::Multiply => {
+                    self.arith(line, |a, b| a * b)?;
+                }
+                Op::Divide => {
+                    let (a, b) = self.numbers(line)?;
+                    // println!(
+                    //     "divide {} and {}",
+                    //     a,
+                    //     b
+                    // );
+                    if b == 0.0 {
+                        return Err(error(line, "Division by zero."));
+                    }
+                    self.stack.push(Value::Number(a / b));
+                }
+
+                Op::Not => {
+                    let value = self.pop();
+                    // println!(
+                    //     "not {}",
+                    //     value
+                    // );
+                    self.stack.push(Value::Bool(!value.is_truthy()));
+                }
+                Op::Negate => {
+                    let value = self.pop();
+                    // println!(
+                    //     "negativee {}",
+                    //     value
+                    // );
+                    match value {
+                        Value::Number(number) => self.stack.push(Value::Number(-number)),
+                        _ => return Err(error(line, "Operand must be a number.")),
+                    }
+                }
+
+                Op::Print => {
+                    let value = self.pop();
+                    // println!(
+                    //     "vm print {}",
+                    //     value
+                    // );
+                    println!("{}", value);
+                }
+
+                Op::Jump(target) => {
+                    // println!(
+                    //     "jump {}",
+                    //     target
+                    // );
+                    self.frame_mut().ip = target;
+                }
+                Op::JumpIfFalse(target) => {
+                    // println!(
+                    //     " JumpIfFalse {}",
+                    //     self.peek().is_truthy()
+                    // );
+                    if !self.peek().is_truthy() {
+                        self.frame_mut().ip = target;
+                    }
+                }
+
+                Op::Call(argc) => {
+                    // println!(
+                    //     "call {}",
+                    //     argc
+                    // );
+                    self.call(argc, line)?;
+                }
+
+                Op::Return => {
+                    let value = self.pop();
+                    let frame = self.frames.pop().expect("a frame is always running");
+
+                    // println!(
+                    //     "vm return {}",
+                    //     value
+                    // );
+
+                    if self.frames.is_empty() {
+                        return Ok(());
+                    }
+
+                    self.stack.truncate(frame.base - 1);
+                    self.stack.push(value);
+                    // println!(
+                    //     "new len {}",
+                    //     self.stack.len()
+                    // );
+                }
+            }
+        }
     }
 
     /// The callee is on the stack underneath its arguments, put there by the code that
