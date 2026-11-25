@@ -282,7 +282,48 @@ impl Vm {
     fn call(&mut self, argc: usize, line: usize) -> Result<(), RuntimeError> {
         // TODO(you): spec 4.3 again, on a stack instead of a tree: the arguments are already
         //            lying where the callee's slots need them.
-        todo!("Vm::call")
+
+        let callee = self.stack[self.stack.len() - argc - 1].clone();
+
+        // println!(
+        //     "argc {}",
+        //     argc
+        // );
+
+        let Value::Function { index, .. } = callee else {
+            return Err(error(line, "This value is not a function."));
+        };
+
+        let arity = self.bytecode.functions[index].arity;
+        // println!(
+        //     "f index {}, arity {}, but got {}",
+        //     index,
+        //     arity,
+        //     argc
+        // );
+        if argc != arity {
+            return Err(error(
+                line,
+                &format!("Expected {} arguments but got {}.", arity, argc),
+            ));
+        }
+
+        if self.frames.len() > MAX_FRAMES {
+            return Err(error(line, "Stack overflow."));
+        }
+
+        let base = self.stack.len() - argc;
+        self.frames.push(Frame {
+            function: Some(index),
+            ip: 0,
+            base,
+        });
+        // println!(
+        //     "pushed index {}, base {}",
+        //     index,
+        //     base
+        // );
+        Ok(())
     }
 
     // --- primitives -------------------------------------------------------------------
