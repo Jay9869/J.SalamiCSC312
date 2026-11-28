@@ -198,6 +198,18 @@ impl Scanner {
                 self.error(current_string_line, "String is never closed.");
                 return;
             }
+
+            // My extension (matric no ends in 7)
+            if self.peek() == '\\' {
+                string_holder.push(self.advance()); // the backslash
+                if self.at_end() {
+                    self.error(current_string_line, "String is never closed.");
+                    return;
+                }
+                if self.peek() == '\n' {
+                    self.line += 1;
+                }
+            }
             string_holder.push(self.advance());
         }
         let holder_concat: String = string_holder.iter().collect();
