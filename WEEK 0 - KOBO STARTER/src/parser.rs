@@ -564,7 +564,53 @@ impl Parser {
 
         if self.matches(&[TokenType::Str]) {
             let text = self.previous().lexeme.clone();
-            let value = text[1..text.len() - 1].to_string();
+
+            let raw = &text[1..text.len() - 1];
+            let mut value = String::with_capacity(raw.len());
+            let mut chars = raw.chars();
+
+            // println!(
+            //     "text len {}",
+            //     raw.len()
+            // );
+
+            while let Some(c) = chars.next() {
+                // println!(
+                //     "c before unescape {}",
+                //     c
+                // );
+                if c != '\\' {
+                    // println!(
+                    //     "regular char {}",
+                    //     c
+                    // );
+                    value.push(c);
+                    continue;
+                }
+
+                match chars.next() {
+                    Some('n') => {
+                        value.push('\n');
+                    }
+                    Some('t') => {
+                        value.push('\t');
+                    }
+                    Some('"') => {
+                        value.push('"');
+                    }
+                    Some('\\') => {
+                        value.push('\\');
+                    }
+                    Some(other) => {
+                        value.push('\\');
+                        value.push(other);
+                    }
+                    None => {
+                        value.push('\\');
+                    }
+                }
+            }
+
             return Ok(self.literal(Value::Str(value)));
         }
 
